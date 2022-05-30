@@ -8,6 +8,7 @@ class ScoreboardVC: UIViewController, UITableViewDataSource, UITableViewDelegate
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        tableView.layer.cornerRadius = 6
     }
     override func viewWillAppear(_ animated: Bool) {
         fetchData()

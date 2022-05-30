@@ -27,7 +27,7 @@ extension UIViewController{
     }
 }
 
-class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptureVideoDataOutputSampleBufferDelegate {
+class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptureVideoDataOutputSampleBufferDelegate, UITextFieldDelegate {
     
     @IBOutlet weak var scoreLabel: UILabel!
     @IBOutlet weak var gameOverText: UILabel!
@@ -41,16 +41,23 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
     @IBOutlet weak var usernameEntry: UITextField!
     
     var player: AVAudioPlayer?
-    var secondsRemaining = 15
+    var secondsRemaining = 10
     var timer: Timer?
     var cameraDevice: AVCaptureDevice?
     var quizLogic = Quiz()
     var isGameRunning = false
-    var captureSession = AVCaptureSession()
+    var captureSession:AVCaptureSession?
+    var previewLayer:AVCaptureVideoPreviewLayer?
     
     override func viewDidLoad() {
         super.viewDidLoad()
         quizLogic.readJson()
+        self.usernameEntry.delegate = self
+    }
+    
+    @objc func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        self.view.endEditing(true)
+        return false
     }
     
     @IBAction func playPressed(_ sender: Any) {
@@ -59,7 +66,6 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
         gameView.isHidden = false
         gameOverView.isHidden = true
         startGame()
-        
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -102,13 +108,13 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
-
+            
             player = try AVAudioPlayer(contentsOf: url!, fileTypeHint: AVFileType.mp3.rawValue)
             
             guard let player = player else { return }
-
+            
             player.play()
-
+            
         } catch let error {
             print(error.localizedDescription)
         }
@@ -145,7 +151,7 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
     }
     
     func startTimer() {
-        secondsRemaining = 15
+        secondsRemaining = 10
         self.timerText.textColor = UIColor.red
         self.timerText.text = String(format: "%02d sec", self.secondsRemaining)
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { (Timer) in
@@ -186,7 +192,10 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
         isGameRunning = false
         endTimer()
         questionLabel.backgroundColor = UIColor.clear
-        captureSession.stopRunning()
+        videoView.layer.sublayers?.removeFirst()
+        previewLayer = nil
+        captureSession!.stopRunning()
+        captureSession = nil
         mainMenuView.isHidden = true
         gameView.isHidden = true
         gameOverView.isHidden = false
@@ -199,9 +208,9 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
     
     @IBAction func saveToScoreboard(){
         var alert:UIAlertController!
-        if(!usernameEntry.text!.isEmpty){
-            if(usernameEntry.text!.count >= 2 && usernameEntry.text!.count <= 15){
-                self.saveNewItem(username: usernameEntry.text!, score: self.quizLogic.getScore() as NSNumber, date: Date.now as NSDate)
+        if(!self.usernameEntry.text!.isEmpty){
+            if(self.usernameEntry.text!.count >= 2 && self.usernameEntry.text!.count <= 15){
+                self.saveNewItem(username: self.usernameEntry.text!, score: self.quizLogic.getScore() as NSNumber, date: Date.now as NSDate)
                 return
             }else{
                 alert = UIAlertController(title: "Warning", message: "Username must be 2-15 character (not accepting emoji)", preferredStyle: .alert)
@@ -210,7 +219,7 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
             alert = UIAlertController(title: "Warning", message: "Username can't be empty", preferredStyle: .alert)
         }
         alert.addAction(UIAlertAction(title: "OK", style: UIAlertAction.Style.default, handler: { action in
-            self.usernameEntry.text = " "
+            self.usernameEntry.text = ""
         }))
         self.present(alert, animated: true, completion: nil)
     }
@@ -229,7 +238,8 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
     }
     
     func openCamera(){
-        captureSession.sessionPreset = AVCaptureSession.Preset.high
+        captureSession = AVCaptureSession()
+        captureSession!.sessionPreset = AVCaptureSession.Preset.high
         
         let videoDeviceDiscovery = AVCaptureDevice.DiscoverySession(deviceTypes: [AVCaptureDevice.DeviceType.builtInWideAngleCamera], mediaType: AVMediaType.video, position: .front)
         
@@ -246,8 +256,8 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
         
         do {
             let videoInput = try AVCaptureDeviceInput(device: cameraDevice!)
-            if captureSession.canAddInput(videoInput) {
-                captureSession.addInput(videoInput)
+            if captureSession!.canAddInput(videoInput) {
+                captureSession!.addInput(videoInput)
             } else {
                 print("Video input can not be added.")
             }
@@ -256,28 +266,28 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
             return
         }
         
-        let previewLayer = AVCaptureVideoPreviewLayer.init(session: captureSession)
-        previewLayer.frame.size = videoView.frame.size
-        previewLayer.opacity = 0.3
-        previewLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
-        videoView.layer.addSublayer(previewLayer)
+        previewLayer = AVCaptureVideoPreviewLayer.init(session: captureSession!)
+        previewLayer!.frame.size = videoView.frame.size
+        previewLayer!.opacity = 0.3
+        previewLayer!.videoGravity = AVLayerVideoGravity.resizeAspectFill
+        videoView.layer.addSublayer(previewLayer!)
         
         let metadataOutput = AVCaptureMetadataOutput()
         let metaQueue = DispatchQueue(label: "MetaDataSession")
         metadataOutput.setMetadataObjectsDelegate(self, queue: metaQueue)
-        if captureSession.canAddOutput(metadataOutput) {
-            captureSession.addOutput(metadataOutput)
+        if captureSession!.canAddOutput(metadataOutput) {
+            captureSession!.addOutput(metadataOutput)
         } else {
             print("Meta data output can not be added.")
         }
         
         metadataOutput.metadataObjectTypes = [AVMetadataObject.ObjectType.face]
         
-        captureSession.startRunning()
+        captureSession!.startRunning()
     }
     
     func saveNewItem(username : String, score : NSNumber, date: NSDate) {
-        usernameEntry.text = " "
+        usernameEntry.text = ""
         
         let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
         
