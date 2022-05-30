@@ -55,6 +55,10 @@ class MainVC: UIViewController, AVCaptureMetadataOutputObjectsDelegate, AVCaptur
         self.usernameEntry.delegate = self
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        AppDelegate.AppUtility.lockOrientation(UIInterfaceOrientationMask.portrait, andRotateTo: UIInterfaceOrientation.portrait)
+    }
+    
     @objc func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         self.view.endEditing(true)
         return false

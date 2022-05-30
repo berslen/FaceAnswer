@@ -12,9 +12,11 @@ class ScoreboardVC: UIViewController, UITableViewDataSource, UITableViewDelegate
     }
     override func viewWillAppear(_ animated: Bool) {
         fetchData()
+        AppDelegate.AppUtility.lockOrientation(UIInterfaceOrientationMask.portrait, andRotateTo: UIInterfaceOrientation.portrait)
+        
     }
     
-     func numberOfSections(in tableView: UITableView) -> Int {
+    func numberOfSections(in tableView: UITableView) -> Int {
         return 1
     }
     
